@@ -1,0 +1,244 @@
+{
+  "info": {
+    "name": "URL Shortener Dashboard API",
+    "description": "Assignment 7 — AI-Powered URL Shortener Dashboard. Covers link CRUD, redirect, analytics, and dashboard stats endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "linkId", "value": "" },
+    { "key": "shortCode", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "Links",
+      "item": [
+        {
+          "name": "Create Link (auto short code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "if (body.data && body.data.id) { pm.collectionVariables.set('linkId', body.data.id); pm.collectionVariables.set('shortCode', body.data.shortCode); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/links", "host": ["{{baseUrl}}"], "path": ["api", "links"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Test Link\",\n  \"originalUrl\": \"https://example.com/postman-test\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Link (custom alias + expiry)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/links", "host": ["{{baseUrl}}"], "path": ["api", "links"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Campaign With Alias\",\n  \"originalUrl\": \"https://example.com/campaign\",\n  \"customAlias\": \"my-campaign-2026\",\n  \"expiresAt\": \"2027-01-01T00:00:00.000Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Link - duplicate alias (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/links", "host": ["{{baseUrl}}"], "path": ["api", "links"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Duplicate Alias Attempt\",\n  \"originalUrl\": \"https://example.com/dup\",\n  \"customAlias\": \"my-campaign-2026\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Link - invalid URL (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/links", "host": ["{{baseUrl}}"], "path": ["api", "links"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Bad URL\",\n  \"originalUrl\": \"not-a-valid-url\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Links (paginated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/links?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Links - search",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/links?search=campaign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links"],
+              "query": [{ "key": "search", "value": "campaign" }]
+            }
+          }
+        },
+        {
+          "name": "List Links - filter by status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/links?status=ACTIVE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "Get Link Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Link",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Title\",\n  \"originalUrl\": \"https://example.com/updated-target\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Disable Link",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}", "status"]
+            },
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"DISABLED\"\n}" }
+          }
+        },
+        {
+          "name": "Enable Link",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}", "status"]
+            },
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"ACTIVE\"\n}" }
+          }
+        },
+        {
+          "name": "Get Link Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}/analytics?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}", "analytics"],
+              "query": [{ "key": "days", "value": "30" }]
+            }
+          }
+        },
+        {
+          "name": "Delete Link (soft delete)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Link Details - after delete (expect 404)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/links/{{linkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "links", "{{linkId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redirect",
+      "item": [
+        {
+          "name": "Redirect - valid short code (expect 302)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/{{shortCode}}", "host": ["{{baseUrl}}"], "path": ["{{shortCode}}"] }
+          }
+        },
+        {
+          "name": "Redirect - unknown short code (expect 404)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/does-not-exist", "host": ["{{baseUrl}}"], "path": ["does-not-exist"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/dashboard/stats", "host": ["{{baseUrl}}"], "path": ["api", "dashboard", "stats"] }
+          }
+        }
+      ]
+    }
+  ]
+}
