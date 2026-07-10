@@ -3,7 +3,6 @@ databases:
     plan: starter
     region: oregon
     databaseName: url_shortener
-    user: postgres
 
 services:
   - type: keyvalue
@@ -38,12 +37,6 @@ services:
           type: keyvalue
           name: linkpilot-redis
           property: connectionString
-      # These two MUST be filled in manually after first deploy (Render dashboard
-      # > linkpilot-backend > Environment): BASE_URL is this service's own public
-      # URL (used to build shortUrl values in API responses), and FRONTEND_ORIGIN
-      # is the deployed Vercel frontend's URL (used for CORS). Neither is knowable
-      # until each service has its first URL, so they're intentionally left unset
-      # here rather than guessed.
       - key: BASE_URL
         sync: false
       - key: FRONTEND_ORIGIN
