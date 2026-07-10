@@ -1,0 +1,50 @@
+databases:
+  - name: linkpilot-db
+    plan: starter
+    region: oregon
+    databaseName: url_shortener
+    user: postgres
+
+services:
+  - type: keyvalue
+    name: linkpilot-redis
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
+  - type: web
+    name: linkpilot-backend
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SHORT_CODE_LENGTH
+        value: "7"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: linkpilot-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: linkpilot-redis
+          property: connectionString
+      # These two MUST be filled in manually after first deploy (Render dashboard
+      # > linkpilot-backend > Environment): BASE_URL is this service's own public
+      # URL (used to build shortUrl values in API responses), and FRONTEND_ORIGIN
+      # is the deployed Vercel frontend's URL (used for CORS). Neither is knowable
+      # until each service has its first URL, so they're intentionally left unset
+      # here rather than guessed.
+      - key: BASE_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false

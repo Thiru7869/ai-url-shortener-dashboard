@@ -55,3 +55,53 @@ since Vite inlines it into the JS bundle at build time.
   both behind a reverse proxy (nginx/Caddy/cloud load balancer) that handles
   HTTPS termination and forwards `X-Forwarded-For` (already read by the backend
   for GeoIP lookups).
+
+## Deploying to Render (backend) + Vercel (frontend)
+
+The repo includes ready-to-use config for this split: `render.yaml` at the repo
+root (a Render Blueprint) and `frontend/vercel.json`.
+
+### Backend on Render
+
+1. In the Render dashboard: **New +** → **Blueprint**, connect this GitHub repo.
+   Render reads `render.yaml` and proposes three resources: `linkpilot-db`
+   (Postgres), `linkpilot-redis` (Key Value/Redis), `linkpilot-backend` (web
+   service built from `backend/Dockerfile`). Approve and deploy.
+2. `DATABASE_URL` and `REDIS_URL` are wired automatically via the blueprint's
+   `fromDatabase`/`fromService` references — nothing to do there.
+3. Once `linkpilot-backend` has its first deploy and a public URL (e.g.
+   `https://linkpilot-backend.onrender.com`), open its **Environment** tab and set:
+   - `BASE_URL` = that exact URL (used to build every `shortUrl` in API responses)
+   - `FRONTEND_ORIGIN` = the Vercel frontend's URL (set after the step below;
+     redeploy the backend once this changes, since CORS reads it at startup)
+4. Confirm `GET https://<backend-url>/health` returns `{"success":true,...}`.
+   `prisma migrate deploy` runs automatically via `docker-entrypoint.sh` on every
+   deploy — no manual migration step.
+
+### Frontend on Vercel
+
+1. **Add New** → **Project**, import this repo, and set **Root Directory** to
+   `frontend` (Vercel's monorepo support — this is a dashboard/CLI setting, not a
+   `vercel.json` field). Vercel auto-detects the Vite framework from there.
+2. Set the build **Environment Variable** `VITE_API_BASE_URL` = the Render backend
+   URL from above. This is baked into the JS bundle at build time — changing it
+   later requires a redeploy, not just an env var update.
+3. Deploy. `frontend/vercel.json` already provides the SPA fallback rewrite (so
+   `/links/:id/analytics` works on a hard refresh) and long-cache headers for
+   `/assets/`.
+4. Go back to Render and set `FRONTEND_ORIGIN` to this Vercel URL, then redeploy
+   the backend so CORS allows it.
+
+### Order of operations (the two services need each other's URLs)
+
+Deploy the backend first (its URL doesn't depend on the frontend) → deploy the
+frontend with `VITE_API_BASE_URL` pointing at it → come back and set the
+backend's `FRONTEND_ORIGIN` to the frontend's URL → redeploy the backend once
+more. Verify with: `GET /health`, an OPTIONS preflight from the deployed frontend
+origin (should return `Access-Control-Allow-Origin` matching it), and creating +
+opening a real short link end to end.
+
+**Note:** Render's free/starter web service tier spins down after inactivity —
+the first request after idle pays a cold-start penalty, which will violate the
+100ms redirect constraint until the instance is warm. For a deployment where that
+matters, use a paid plan that stays always-on.
